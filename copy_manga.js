@@ -8,7 +8,7 @@ class CopyManga extends ComicSource {
 
     minAppVersion = "1.2.1"
 
-    url = "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/copy_manga.js"
+    url = "https://lovebaihai.github.io/comic-source/copy_manga.js"
 
     headers = {}
 

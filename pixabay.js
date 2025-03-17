@@ -208,52 +208,89 @@ class PixabayComicSource extends ComicSource {
             }
         ]
     }
-
+    
     // 搜索功能
-    search = {
-        load: async (keyword, options, page) => {
-            try {
-                // 解析搜索选项
-                let imageType = "all";
-                let ordering = "popular";
-                
-                if (options && options.length >= 1 && options[0]) {
-                    imageType = options[0];
-                }
-                
-                if (options && options.length >= 2 && options[1]) {
-                    ordering = options[1];
-                }
-                
-                // 在用户输入的关键词中添加动漫/漫画限定词
-                const searchKeyword = `${encodeURIComponent(keyword)}+anime+manga`;
-                
-                const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${searchKeyword}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
-                
-                const res = await Network.get(search_url, this.headers);
-                
-                if (res.status !== 200) {
-                    throw `请求失败，状态码: ${res.status}`;
-                }
-                
-                const data = JSON.parse(res.body);
-                
-                if (!data.hits) {
-                    return { comics: [], maxPage: 1 };
-                }
-                
-                return {
-                    comics: data.hits.map(item => this._parseImage(item)),
-                    maxPage: Math.ceil(data.totalHits / 21) > 50 ? 50 : Math.ceil(data.totalHits / 21)
-                };
-                
-            } catch (e) {
-                console.error("搜索失败:", e);
-                UI.toast(`搜索失败: ${e.message || e}`);
+search = {
+    load: async (keyword, options, page) => {
+        try {
+            // 解析搜索选项
+            let imageType = "all";
+            let ordering = "popular";
+            
+            if (options && options.length >= 1 && options[0]) {
+                imageType = options[0];
+            }
+            
+            if (options && options.length >= 2 && options[1]) {
+                ordering = options[1];
+            }
+            
+            // 正确处理搜索关键词
+            let searchKeyword = keyword || "";
+            
+            // 特殊处理用户搜索
+            if (searchKeyword.startsWith("user:")) {
+                // 用户搜索保持原样，但仍添加动漫限定
+                const username = searchKeyword.substring(5).trim();
+                searchKeyword = `user:${username} (anime OR manga OR cartoon)`;
+            } else if (searchKeyword.length > 0) {
+                // 普通搜索词，以更智能的方式组合
+                searchKeyword = `${searchKeyword} (anime OR manga OR cartoon)`;
+            } else {
+                // 空搜索，只使用动漫关键词
+                searchKeyword = "anime manga cartoon";
+            }
+            
+            // 编码整个搜索关键词
+            const encodedKeyword = encodeURIComponent(searchKeyword);
+            
+            const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${encodedKeyword}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+            
+            const res = await Network.get(search_url, this.headers);
+            
+            if (res.status !== 200) {
+                throw `请求失败，状态码: ${res.status}`;
+            }
+            
+            const data = JSON.parse(res.body);
+            
+            if (!data.hits) {
                 return { comics: [], maxPage: 1 };
             }
+            
+            return {
+                comics: data.hits.map(item => this._parseImage(item)),
+                maxPage: Math.ceil(data.totalHits / 21) > 50 ? 50 : Math.ceil(data.totalHits / 21)
+            };
+            
+        } catch (e) {
+            console.error("搜索失败:", e);
+            UI.toast(`搜索失败: ${e.message || e}`);
+            return { comics: [], maxPage: 1 };
+        }
+    },
+    
+    optionList: [
+        {
+            type: "select",
+            options: [
+                "all-所有类型",
+                "photo-照片",
+                "illustration-插画",
+                "vector-矢量图"
+            ],
+            label: "图片类型"
         },
-        
+        {
+            type: "select",
+            options: [
+                "popular-热门",
+                "latest-最新"
+            ],
+            label: "排序方式"
+        }
+    ]
+}
         optionList: [
             {
                 type: "select",

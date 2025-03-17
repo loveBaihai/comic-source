@@ -106,7 +106,7 @@ class PixabayComicSource extends ComicSource {
 
     // 分类页面定义，符合Venera要求
     category = {
-        title: "动漫分类",
+        title: "pixabay",
         parts: [
             {
                 name: "风格",

@@ -1,8 +1,3 @@
-/**
- * Pixabay 漫画源 - 用于 Venera 应用
- * 基于 Pixabay API 实现的图片浏览功能
- * 支持搜索、分类浏览、收藏等功能
- */
 class PixabayComicSource extends ComicSource {
     // 基本信息
     name = "Pixabay"
@@ -14,153 +9,242 @@ class PixabayComicSource extends ComicSource {
     // API 密钥，需要替换为您自己的密钥
     apiKey = "49378416-2520a996a7789e048763eff56"
     
-    // 获取 API 基础 URL
-    get baseUrl() {
-        return `https://pixabay.com/api`;
-    }
+    // API 基础 URL
+    static apiUrl = "https://pixabay.com/api"
+    
+    // 请求头
+    headers = {}
     
     // 初始化函数
     init() {
-        // 检查 API 密钥是否已设置
-        if (this.apiKey === "YOUR_PIXABAY_API_KEY") {
-            UI.toast("请在源代码中设置您的 Pixabay API 密钥或在设置中填写");
-        }
-        
         // 从设置中加载 API 密钥（如果已保存）
         const savedApiKey = this.loadSetting('apiKey');
         if (savedApiKey && savedApiKey.length > 10) {
             this.apiKey = savedApiKey;
+        } else if (this.apiKey === "YOUR_PIXABAY_API_KEY") {
+            UI.toast("请在源代码中设置您的 Pixabay API 密钥或在设置中填写");
+        }
+        
+        // 初始化请求头
+        this.headers = {
+            "User-Agent": "Venera/1.0.0",
+            "Accept": "*/*",
         }
     }
 
     // 探索页面
     explore = [
         {
-            title: "动漫图片",
-            type: "multiPageComicList",
-            
-            /**
-             * 加载探索页面的内容
-             * @param page 页码，从1开始
-             */
-            load: async (page) => {
+            title: "Pixabay",
+            type: "singlePageWithMultiPart",
+            load: async () => {
                 try {
-                    const response = await Network.get(
-                        `${this.baseUrl}/?key=${this.apiKey}&q=anime+illustration&image_type=all&per_page=20&page=${page}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`
+                    // 创建不同分类的请求
+                    const animeRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+illustration&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        this.headers
                     );
                     
-                    const data = JSON.parse(response);
-                    if (!data.hits) {
-                        UI.toast("无法获取图片数据");
-                        return { comics: [], maxPage: 1 };
+                    const popularRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=illustration&image_type=all&per_page=20&page=1&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        this.headers
+                    );
+                    
+                    const natureRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=nature+landscape&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        this.headers
+                    );
+                    
+                    const fashionRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=fashion+model&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        this.headers
+                    );
+                    
+                    // 并行请求数据
+                    const responses = await Promise.all([animeRequest, popularRequest, natureRequest, fashionRequest]);
+                    
+                    // 解析数据
+                    const animeData = JSON.parse(responses[0].body);
+                    const popularData = JSON.parse(responses[1].body);
+                    const natureData = JSON.parse(responses[2].body);
+                    const fashionData = JSON.parse(responses[3].body);
+                    
+                    // 检查响应状态
+                    if (responses[0].status !== 200 || !animeData.hits) {
+                        throw "获取动漫图片数据失败";
                     }
                     
-                    const comics = data.hits.map(item => this._convertToComic(item));
-                    const maxPage = Math.ceil(data.totalHits / 20);
+                    // 整合结果
+                    const result = {};
+                    result["动漫插画"] = animeData.hits.map(item => this._parseImage(item));
+                    result["热门插画"] = popularData.hits.map(item => this._parseImage(item));
+                    result["自然风景"] = natureData.hits.map(item => this._parseImage(item));
+                    result["时尚模特"] = fashionData.hits.map(item => this._parseImage(item));
                     
-                    return {
-                        comics: comics,
-                        maxPage: maxPage > 50 ? 50 : maxPage // Pixabay API 限制最多返回500张图片
-                    };
+                    return result;
+                    
                 } catch (e) {
                     console.error("探索页面加载失败:", e);
                     UI.toast(`加载失败: ${e.message || e}`);
-                    return { comics: [], maxPage: 1 };
-                }
-            }
-        },
-        {
-            title: "热门插画",
-            type: "multiPageComicList",
-            
-            load: async (page) => {
-                try {
-                    const response = await Network.get(
-                        `${this.baseUrl}/?key=${this.apiKey}&q=illustration&image_type=all&per_page=20&page=${page}&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`
-                    );
-                    
-                    const data = JSON.parse(response);
-                    if (!data.hits) {
-                        UI.toast("无法获取图片数据");
-                        return { comics: [], maxPage: 1 };
-                    }
-                    
-                    const comics = data.hits.map(item => this._convertToComic(item));
-                    const maxPage = Math.ceil(data.totalHits / 20);
-                    
-                    return {
-                        comics: comics,
-                        maxPage: maxPage > 50 ? 50 : maxPage
-                    };
-                } catch (e) {
-                    console.error("热门插画加载失败:", e);
-                    UI.toast(`加载失败: ${e.message || e}`);
-                    return { comics: [], maxPage: 1 };
-                }
-            }
-        },
-        {
-            title: "自然风景",
-            type: "multiPageComicList",
-            
-            load: async (page) => {
-                try {
-                    const response = await Network.get(
-                        `${this.baseUrl}/?key=${this.apiKey}&q=nature+landscape&image_type=all&per_page=20&page=${page}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`
-                    );
-                    
-                    const data = JSON.parse(response);
-                    if (!data.hits) {
-                        UI.toast("无法获取图片数据");
-                        return { comics: [], maxPage: 1 };
-                    }
-                    
-                    const comics = data.hits.map(item => this._convertToComic(item));
-                    const maxPage = Math.ceil(data.totalHits / 20);
-                    
-                    return {
-                        comics: comics,
-                        maxPage: maxPage > 50 ? 50 : maxPage
-                    };
-                } catch (e) {
-                    console.error("自然风景加载失败:", e);
-                    UI.toast(`加载失败: ${e.message || e}`);
-                    return { comics: [], maxPage: 1 };
+                    return {};
                 }
             }
         }
     ]
+
+    // 分类设置
+    static category_param_dict = {
+        "全部": "all",
+        "动漫": "anime",
+        "插画": "illustration",
+        "风景": "landscape",
+        "人物": "people",
+        "动物": "animals",
+        "建筑": "architecture",
+        "食物": "food",
+        "科技": "technology",
+        "交通": "transportation",
+        "旅行": "travel",
+        "时尚": "fashion",
+        "音乐": "music",
+        "运动": "sports",
+        "宗教": "religion",
+        "季节": "seasons"
+    }
+
+    category = {
+        title: "Pixabay",
+        parts: [
+            {
+                name: "Pixabay",
+                type: "fixed",
+                categories: ["排行"],
+                categoryParams: ["popular"],
+                itemType: "category"
+            },
+            {
+                name: "主题",
+                type: "fixed",
+                categories: Object.keys(PixabayComicSource.category_param_dict),
+                categoryParams: Object.values(PixabayComicSource.category_param_dict),
+                itemType: "category"
+            }
+        ]
+    }
+
+    categoryComics = {
+        load: async (category, param, options, page) => {
+            try {
+                let category_url;
+                
+                // 分类-排行
+                if (category === "排行" || param === "popular") {
+                    category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=&image_type=all&per_page=21&page=${page}&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                } else {
+                    // 分类-主题
+                    if (category !== undefined && category !== null) {
+                        // 若传入category，则转化为对应param
+                        param = PixabayComicSource.category_param_dict[category] || "all";
+                    }
+                    
+                    options = options.map(e => e.replace("*", "-"));
+                    
+                    // 图片类型选项
+                    let imageType = "all";
+                    if (options[0] && options[0] !== "-") {
+                        imageType = options[0];
+                    }
+                    
+                    // 排序方式
+                    let ordering = "popular";
+                    if (options[1]) {
+                        ordering = options[1];
+                    }
+                    
+                    category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${param}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                }
+                
+                const res = await Network.get(category_url, this.headers);
+                
+                if (res.status !== 200) {
+                    throw `请求失败，状态码: ${res.status}`;
+                }
+                
+                const data = JSON.parse(res.body);
+                
+                if (!data.hits) {
+                    return { comics: [], maxPage: 1 };
+                }
+                
+                return {
+                    comics: data.hits.map(item => this._parseImage(item)),
+                    maxPage: Math.ceil(data.totalHits / 21) > 50 ? 50 : Math.ceil(data.totalHits / 21)
+                };
+                
+            } catch (e) {
+                console.error("分类页面加载失败:", e);
+                UI.toast(`加载失败: ${e.message || e}`);
+                return { comics: [], maxPage: 1 };
+            }
+        },
+        
+        optionList: [
+            {
+                options: [
+                    "-全部",
+                    "photo-照片",
+                    "illustration-插画",
+                    "vector-矢量图"
+                ],
+                notShowWhen: null,
+                showWhen: Object.keys(PixabayComicSource.category_param_dict)
+            },
+            {
+                options: [
+                    "popular-热门",
+                    "latest-最新"
+                ],
+                notShowWhen: null,
+                showWhen: Object.keys(PixabayComicSource.category_param_dict)
+            }
+        ]
+    }
 
     // 搜索功能
     search = {
         load: async (keyword, options, page) => {
             try {
                 // 解析搜索选项
-                let orderOption = 'popular';
-                let imageTypeOption = 'all';
+                let imageType = "all";
+                let ordering = "popular";
                 
-                if (options && options.length >= 2) {
-                    orderOption = options[0] || 'popular';
-                    imageTypeOption = options[1] || 'all';
+                if (options && options.length >= 1) {
+                    imageType = options[0] || "all";
                 }
                 
-                const response = await Network.get(
-                    `${this.baseUrl}/?key=${this.apiKey}&q=${encodeURIComponent(keyword)}&image_type=${imageTypeOption}&per_page=20&page=${page}&order=${orderOption}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`
-                );
+                if (options && options.length >= 2) {
+                    ordering = options[1] || "popular";
+                }
                 
-                const data = JSON.parse(response);
+                const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${encodeURIComponent(keyword)}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                
+                const res = await Network.get(search_url, this.headers);
+                
+                if (res.status !== 200) {
+                    throw `请求失败，状态码: ${res.status}`;
+                }
+                
+                const data = JSON.parse(res.body);
+                
                 if (!data.hits) {
-                    UI.toast("无法获取搜索结果");
                     return { comics: [], maxPage: 1 };
                 }
                 
-                const comics = data.hits.map(item => this._convertToComic(item));
-                const maxPage = Math.ceil(data.totalHits / 20);
-                
                 return {
-                    comics: comics,
-                    maxPage: maxPage > 50 ? 50 : maxPage
+                    comics: data.hits.map(item => this._parseImage(item)),
+                    maxPage: Math.ceil(data.totalHits / 21) > 50 ? 50 : Math.ceil(data.totalHits / 21)
                 };
+                
             } catch (e) {
                 console.error("搜索失败:", e);
                 UI.toast(`搜索失败: ${e.message || e}`);
@@ -172,15 +256,6 @@ class PixabayComicSource extends ComicSource {
             {
                 type: "select",
                 options: [
-                    "popular-热门",
-                    "latest-最新"
-                ],
-                label: "排序方式",
-                default: "popular",
-            },
-            {
-                type: "select",
-                options: [
                     "all-所有",
                     "photo-照片",
                     "illustration-插画",
@@ -188,144 +263,19 @@ class PixabayComicSource extends ComicSource {
                 ],
                 label: "图片类型",
                 default: "all",
+            },
+            {
+                type: "select",
+                options: [
+                    "popular-热门",
+                    "latest-最新"
+                ],
+                label: "排序方式",
+                default: "popular",
             }
         ],
         
         enableTagsSuggestions: false,
-    }
-
-    // 漫画详情
-    comic = {
-        loadInfo: async (id) => {
-            try {
-                // 解析ID获取图片ID
-                const imageId = id.split('-')[0];
-                
-                const response = await Network.get(
-                    `${this.baseUrl}/?key=${this.apiKey}&id=${imageId}`
-                );
-                
-                const data = JSON.parse(response);
-                if (!data.hits || data.hits.length === 0) {
-                    UI.toast("无法获取图片详情");
-                    throw new Error("图片未找到");
-                }
-                
-                const image = data.hits[0];
-                
-                return {
-                    id: id,
-                    title: image.tags ? image.tags.split(',')[0].trim() : '未命名',
-                    cover: image.webformatURL,
-                    update: new Date(image.previewURL).toISOString(),
-                    isFinished: true,
-                    isLiked: false,
-                    chapters: [
-                        {
-                            id: "view",
-                            title: "查看大图",
-                            updateTime: new Date(image.previewURL).toISOString()
-                        }
-                    ],
-                    description: `标签: ${image.tags}\n上传者: ${image.user}\n浏览次数: ${image.views}\n下载次数: ${image.downloads}\n喜欢次数: ${image.likes}`,
-                    authors: [
-                        {
-                            name: image.user,
-                            role: "作者"
-                        }
-                    ],
-                    tags: image.tags.split(',').map(tag => {
-                        return {
-                            namespace: "tags",
-                            key: tag.trim(),
-                            value: tag.trim()
-                        }
-                    })
-                };
-            } catch (e) {
-                console.error("加载图片详情失败:", e);
-                UI.toast(`加载图片详情失败: ${e.message || e}`);
-                throw e;
-            }
-        },
-        
-        loadEp: async (comicId, epId) => {
-            try {
-                // 解析ID获取图片ID
-                const imageId = comicId.split('-')[0];
-                
-                const response = await Network.get(
-                    `${this.baseUrl}/?key=${this.apiKey}&id=${imageId}`
-                );
-                
-                const data = JSON.parse(response);
-                if (!data.hits || data.hits.length === 0) {
-                    UI.toast("无法获取图片");
-                    throw new Error("图片未找到");
-                }
-                
-                const image = data.hits[0];
-                
-                // 返回原始图像URL
-                return {
-                    images: [image.largeImageURL]
-                };
-            } catch (e) {
-                console.error("加载图片失败:", e);
-                UI.toast(`加载图片失败: ${e.message || e}`);
-                throw e;
-            }
-        },
-        
-        // 添加缩略图支持
-        loadThumbnails: async (id, next) => {
-            try {
-                // 解析图片ID
-                const imageId = id.split('-')[0];
-                
-                const response = await Network.get(
-                    `${this.baseUrl}/?key=${this.apiKey}&id=${imageId}`
-                );
-                
-                const data = JSON.parse(response);
-                if (!data.hits || data.hits.length === 0) {
-                    throw new Error("图片未找到");
-                }
-                
-                const image = data.hits[0];
-                
-                // 返回单个缩略图
-                return {
-                    thumbnails: [image.webformatURL],
-                    next: null // 单张图片不需要分页
-                };
-            } catch (e) {
-                console.error("加载缩略图失败:", e);
-                throw e;
-            }
-        },
-        
-        onClickTag: (namespace, tag) => {
-            if (namespace === "tags") {
-                return {
-                    action: "search",
-                    keyword: tag
-                };
-            }
-            return null;
-        },
-        
-        link: {
-            domains: ['pixabay.com'],
-            linkToId: ("https://pixabay.com") => {
-                // 匹配 Pixabay 各种 URL 格式中的图片 ID
-                const match = "https://pixabay.com".match(/pixabay\.com\/(?:.*?)\/(?:.*?)-(\d+)\/?/);
-                if (match && match[1]) {
-                    return match[1];
-                }
-                return null;
-            }
-        }
     }
 
     // 收藏功能
@@ -334,7 +284,7 @@ class PixabayComicSource extends ComicSource {
         
         addOrDelFavorite: async (comicId, folderId, isAdding, favoriteId) => {
             try {
-                // 使用 app 本地存储来管理收藏，因为 Pixabay API 不支持收藏功能
+                // 使用 app 本地存储来管理收藏
                 const key = `pixabay_favorites`;
                 let favorites = [];
                 
@@ -405,7 +355,7 @@ class PixabayComicSource extends ComicSource {
                     console.error("读取收藏失败:", e);
                 }
                 
-                const pageSize = 20;
+                const pageSize = 21;
                 const start = (page - 1) * pageSize;
                 const end = start + pageSize;
                 const pageIds = favorites.slice(start, end);
@@ -413,13 +363,15 @@ class PixabayComicSource extends ComicSource {
                 const comics = [];
                 for (const id of pageIds) {
                     try {
+                        const imageId = id.split('-')[0];
                         const response = await Network.get(
-                            `${this.baseUrl}/?key=${this.apiKey}&id=${id.split('-')[0]}`
+                            `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${imageId}`,
+                            this.headers
                         );
                         
-                        const data = JSON.parse(response);
+                        const data = JSON.parse(response.body);
                         if (data.hits && data.hits.length > 0) {
-                            comics.push(this._convertToComic(data.hits[0]));
+                            comics.push(this._parseImage(data.hits[0]));
                         }
                     } catch (e) {
                         console.error("加载收藏图片失败:", e);
@@ -437,6 +389,175 @@ class PixabayComicSource extends ComicSource {
                     comics: [],
                     maxPage: 1
                 };
+            }
+        }
+    }
+
+    // 漫画详情
+    comic = {
+        loadInfo: async (id) => {
+            try {
+                // 解析ID获取图片ID
+                const imageId = id.split('-')[0];
+                
+                const response = await Network.get(
+                    `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${imageId}`,
+                    this.headers
+                );
+                
+                if (response.status !== 200) {
+                    throw `请求失败，状态码: ${response.status}`;
+                }
+                
+                const data = JSON.parse(response.body);
+                
+                if (!data.hits || data.hits.length === 0) {
+                    throw new Error("图片未找到");
+                }
+                
+                const image = data.hits[0];
+                
+                // 获取收藏状态
+                const key = `pixabay_favorites`;
+                let favorites = [];
+                let isFavorite = false;
+                
+                try {
+                    const savedFavorites = await Storage.get(key);
+                    if (savedFavorites) {
+                        favorites = JSON.parse(savedFavorites);
+                        isFavorite = favorites.includes(id);
+                    }
+                } catch (e) {
+                    console.error("读取收藏失败:", e);
+                }
+                
+                // 构建标签
+                const tags = image.tags.split(',').map(tag => tag.trim());
+                
+                return {
+                    title: image.tags ? tags[0] : '未命名',
+                    cover: image.webformatURL,
+                    description: `上传者: ${image.user}\n\n分辨率: ${image.imageWidth}x${image.imageHeight}\n浏览次数: ${image.views}\n下载次数: ${image.downloads}\n喜欢次数: ${image.likes}`,
+                    tags: {
+                        "上传者": [image.user],
+                        "标签": tags,
+                        "类型": [image.type]
+                    },
+                    chapters: new Map([
+                        ["view", "查看大图"]
+                    ]),
+                    isFavorite: isFavorite,
+                    subId: image.id.toString()
+                };
+            } catch (e) {
+                console.error("加载图片详情失败:", e);
+                UI.toast(`加载图片详情失败: ${e.message || e}`);
+                throw e;
+            }
+        },
+        
+        loadEp: async (comicId, epId) => {
+            try {
+                // 解析ID获取图片ID
+                const imageId = comicId.split('-')[0];
+                
+                const response = await Network.get(
+                    `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${imageId}`,
+                    this.headers
+                );
+                
+                if (response.status !== 200) {
+                    throw `请求失败，状态码: ${response.status}`;
+                }
+                
+                const data = JSON.parse(response.body);
+                
+                if (!data.hits || data.hits.length === 0) {
+                    throw new Error("图片未找到");
+                }
+                
+                const image = data.hits[0];
+                
+                // 返回原始图像URL
+                return {
+                    images: [image.largeImageURL]
+                };
+            } catch (e) {
+                console.error("加载图片失败:", e);
+                UI.toast(`加载图片失败: ${e.message || e}`);
+                throw e;
+            }
+        },
+        
+        // 添加缩略图支持
+        loadThumbnails: async (id, next) => {
+            try {
+                // 解析图片ID
+                const imageId = id.split('-')[0];
+                
+                const response = await Network.get(
+                    `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${imageId}`,
+                    this.headers
+                );
+                
+                if (response.status !== 200) {
+                    throw `请求失败，状态码: ${response.status}`;
+                }
+                
+                const data = JSON.parse(response.body);
+                
+                if (!data.hits || data.hits.length === 0) {
+                    throw new Error("图片未找到");
+                }
+                
+                const image = data.hits[0];
+                
+                // 返回单个缩略图
+                return {
+                    thumbnails: [image.webformatURL],
+                    next: null // 单张图片不需要分页
+                };
+            } catch (e) {
+                console.error("加载缩略图失败:", e);
+                throw e;
+            }
+        },
+        
+        onClickTag: (namespace, tag) => {
+            if (namespace === "标签") {
+                return {
+                    action: 'search',
+                    keyword: tag,
+                    param: null,
+                }
+            }
+            if (namespace === "上传者") {
+                return {
+                    action: 'search',
+                    keyword: `user:${tag}`,
+                    param: null,
+                }
+            }
+            if (namespace === "类型") {
+                return {
+                    action: 'category',
+                    keyword: null,
+                    param: tag,
+                }
+            }
+            throw "未支持此类Tag检索"
+        },
+        
+        link: {
+            domains: ['pixabay.com'],
+            linkToId: ('pixabay.com') => {
+                // 匹配 Pixabay 各种 URL 格式中的图片 ID
+                const match = 'pixabay.com'.match(/pixabay\.com\/(?:.*?)\/(?:.*?)-(\d+)\/?/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+                return null;
             }
         }
     }
@@ -469,9 +590,10 @@ class PixabayComicSource extends ComicSource {
             '照片': '照片',
             '插画': '插画',
             '矢量图': '矢量图',
-            '动漫图片': '动漫图片',
+            '动漫插画': '动漫插画',
             '热门插画': '热门插画',
             '自然风景': '自然风景',
+            '时尚模特': '时尚模特',
             '查看大图': '查看大图',
             '未命名': '未命名',
             '收藏夹': '收藏夹',
@@ -480,7 +602,8 @@ class PixabayComicSource extends ComicSource {
             '浏览次数': '浏览次数',
             '下载次数': '下载次数',
             '喜欢次数': '喜欢次数',
-            '作者': '作者'
+            '分辨率': '分辨率',
+            '类型': '类型'
         },
         'zh_TW': {
             'API 密钥': 'API 密鑰',
@@ -493,9 +616,10 @@ class PixabayComicSource extends ComicSource {
             '照片': '照片',
             '插画': '插畫',
             '矢量图': '矢量圖',
-            '动漫图片': '動漫圖片',
+            '动漫插画': '動漫插畫',
             '热门插画': '熱門插畫',
             '自然风景': '自然風景',
+            '时尚模特': '時尚模特',
             '查看大图': '查看大圖',
             '未命名': '未命名',
             '收藏夹': '收藏夾',
@@ -504,7 +628,8 @@ class PixabayComicSource extends ComicSource {
             '浏览次数': '瀏覽次數',
             '下载次数': '下載次數',
             '喜欢次数': '喜歡次數',
-            '作者': '作者'
+            '分辨率': '分辨率',
+            '类型': '類型'
         },
         'en': {
             'API 密钥': 'API Key',
@@ -517,9 +642,10 @@ class PixabayComicSource extends ComicSource {
             '照片': 'Photo',
             '插画': 'Illustration',
             '矢量图': 'Vector',
-            '动漫图片': 'Anime Images',
+            '动漫插画': 'Anime Illustrations',
             '热门插画': 'Popular Illustrations',
             '自然风景': 'Nature & Landscape',
+            '时尚模特': 'Fashion Models',
             '查看大图': 'View Full Image',
             '未命名': 'Untitled',
             '收藏夹': 'Favorites',
@@ -528,24 +654,22 @@ class PixabayComicSource extends ComicSource {
             '浏览次数': 'Views',
             '下载次数': 'Downloads',
             '喜欢次数': 'Likes',
-            '作者': 'Author'
+            '分辨率': 'Resolution',
+            '类型': 'Type'
         }
     }
 
-    // 辅助方法：将 Pixabay 的图片项转换为 Comic 对象
-    _convertToComic(item) {
+    // 辅助方法：将 Pixabay 的图片项转换为展示对象
+    _parseImage(item) {
+        const tags = item.tags ? item.tags.split(',').map(tag => tag.trim()) : [];
         return {
             id: `${item.id}-${new Date().getTime()}`,
-            title: item.tags ? item.tags.split(',')[0].trim() : '未命名',
+            title: tags.length > 0 ? tags[0] : '未命名',
+            subTitle: item.user,
             cover: item.webformatURL,
-            update: new Date(item.previewURL).toISOString(),
-            authors: [
-                {
-                    name: item.user,
-                    role: "作者"
-                }
-            ]
-        };
+            tags: tags,
+            description: `分辨率: ${item.imageWidth}x${item.imageHeight}\n浏览: ${item.views} | 下载: ${item.downloads}`
+        }
     }
 }
 

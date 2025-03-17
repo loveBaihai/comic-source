@@ -232,13 +232,13 @@ search = {
             if (searchKeyword.startsWith("user:")) {
                 // 用户搜索保持原样，但仍添加动漫限定
                 const username = searchKeyword.substring(5).trim();
-                searchKeyword = `user:${username} anime manga cartoon`;
+                searchKeyword = `user:${username}+anime+manga+cartoon`;
             } else if (searchKeyword.length > 0) {
                 // 普通搜索词
-                searchKeyword = `${searchKeyword} anime manga cartoon`;
+                searchKeyword = `${searchKeyword}+anime+manga+cartoon`;
             } else {
                 // 空搜索，只使用动漫关键词
-                searchKeyword = "anime manga cartoon";
+                searchKeyword = "anime+manga+cartoon";
             }
             
             // 确保正确编码 URL - 这是关键修复

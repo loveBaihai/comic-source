@@ -6,7 +6,7 @@ class PixabayComicSource extends ComicSource {
     minAppVersion = "1.0.0"
     url = "https://lovebaihai.github.io/comic-source/pixabay.js"
 
-    // API 密钥，需要替换为您自己的密钥
+    // API 密钥，使用现有的密钥
     apiKey = "49378416-2520a996a7789e048763eff56"
     
     // API 基础 URL
@@ -551,9 +551,9 @@ class PixabayComicSource extends ComicSource {
         
         link: {
             domains: ['pixabay.com'],
-            linkToId: ('pixabay.com') => {
+            linkToId: (url) => {
                 // 匹配 Pixabay 各种 URL 格式中的图片 ID
-                const match = 'pixabay.com'.match(/pixabay\.com\/(?:.*?)\/(?:.*?)-(\d+)\/?/);
+                const match = url.match(/pixabay\.com\/(?:.*?)\/(?:.*?)-(\d+)\/?/);
                 if (match && match[1]) {
                     return match[1];
                 }
@@ -672,5 +672,3 @@ class PixabayComicSource extends ComicSource {
         }
     }
 }
-
-module.exports = new PixabayComicSource();

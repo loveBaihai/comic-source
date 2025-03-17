@@ -291,31 +291,6 @@ search = {
         }
     ]
 }
-        optionList: [
-            {
-                type: "select",
-                options: [
-                    "all-所有",
-                    "photo-照片",
-                    "illustration-插画",
-                    "vector-矢量图"
-                ],
-                label: "图片类型",
-                default: "all",
-            },
-            {
-                type: "select",
-                options: [
-                    "popular-热门",
-                    "latest-最新"
-                ],
-                label: "排序方式",
-                default: "popular",
-            }
-        ],
-        
-        enableTagsSuggestions: false,
-    }
 
     // 收藏功能
     favorites = {

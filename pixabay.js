@@ -21,8 +21,6 @@ class PixabayComicSource extends ComicSource {
         const savedApiKey = this.loadSetting('apiKey');
         if (savedApiKey && savedApiKey.length > 10) {
             this.apiKey = savedApiKey;
-        } else if (this.apiKey === "YOUR_PIXABAY_API_KEY") {
-            UI.toast("请在源代码中设置您的 Pixabay API 密钥或在设置中填写");
         }
         
         // 初始化请求头
@@ -32,14 +30,14 @@ class PixabayComicSource extends ComicSource {
         }
     }
 
-    // 探索页面 - 确保所有类别都包含动漫相关关键词
+    // 探索页面
     explore = [
         {
             title: "Pixabay",
             type: "singlePageWithMultiPart",
             load: async () => {
                 try {
-                    // 所有请求都添加动漫/漫画相关关键词
+                    // 创建不同分类的请求，都添加动漫/漫画关键词
                     const animeRequest = Network.get(
                         `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga+illustration&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
@@ -92,38 +90,33 @@ class PixabayComicSource extends ComicSource {
         }
     ]
 
-    // 分类设置 - 所有分类都是动漫相关的
+    // 分类设置 - 修复识别问题
     static category_param_dict = {
-        "全部动漫": "anime+manga",
-        "少女动漫": "anime+girl",
-        "少年动漫": "anime+boy",
-        "机器人": "anime+robot",
-        "奇幻": "anime+fantasy",
-        "科幻": "anime+sci-fi",
-        "校园": "anime+school",
-        "魔法": "anime+magic",
-        "冒险": "anime+adventure",
-        "战斗": "anime+battle",
-        "日本动漫": "japanese+anime",
-        "赛博朋克": "cyberpunk+anime",
-        "魔女": "anime+witch",
-        "武士": "anime+samurai",
-        "忍者": "anime+ninja",
-        "怪物": "anime+monster"
+        "动漫": "anime",
+        "漫画": "manga",
+        "卡通": "cartoon",
+        "插画": "illustration",
+        "角色": "character+anime",
+        "少女": "anime+girl",
+        "少年": "anime+boy",
+        "机器人": "robot+anime",
+        "魔法": "magic+anime",
+        "忍者": "ninja+anime"
     }
 
+    // 分类页面定义，符合Venera要求
     category = {
         title: "动漫分类",
         parts: [
             {
                 name: "风格",
                 type: "fixed",
-                categories: ["排行"],
-                categoryParams: ["popular"],
+                categories: ["热门", "最新"],
+                categoryParams: ["popular", "latest"],
                 itemType: "category"
             },
             {
-                name: "类型",
+                name: "主题",
                 type: "fixed",
                 categories: Object.keys(PixabayComicSource.category_param_dict),
                 categoryParams: Object.values(PixabayComicSource.category_param_dict),
@@ -132,32 +125,38 @@ class PixabayComicSource extends ComicSource {
         ]
     }
 
+    // 分类漫画列表加载方法
     categoryComics = {
         load: async (category, param, options, page) => {
             try {
                 let category_url;
                 
-                // 分类-排行
-                if (category === "排行" || param === "popular") {
+                // 风格分类
+                if (category === "热门" || param === "popular") {
                     category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga&image_type=all&per_page=21&page=${page}&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                } else if (category === "最新" || param === "latest") {
+                    category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga&image_type=all&per_page=21&page=${page}&order=latest&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
                 } else {
-                    // 分类-主题
+                    // 主题分类
                     if (category !== undefined && category !== null) {
                         // 若传入category，则转化为对应param
                         param = PixabayComicSource.category_param_dict[category] || "anime+manga";
                     }
                     
-                    options = options.map(e => e.replace("*", "-"));
+                    // 确保param有值
+                    if (!param) {
+                        param = "anime+manga";
+                    }
                     
                     // 图片类型选项
                     let imageType = "all";
-                    if (options[0] && options[0] !== "-") {
+                    if (options && options.length > 0 && options[0] && options[0] !== "-") {
                         imageType = options[0];
                     }
                     
                     // 排序方式
                     let ordering = "popular";
-                    if (options[1]) {
+                    if (options && options.length > 1 && options[1]) {
                         ordering = options[1];
                     }
                     
@@ -196,7 +195,7 @@ class PixabayComicSource extends ComicSource {
                     "illustration-插画",
                     "vector-矢量图"
                 ],
-                notShowWhen: null,
+                notShowWhen: ["热门", "最新"],
                 showWhen: Object.keys(PixabayComicSource.category_param_dict)
             },
             {
@@ -204,13 +203,13 @@ class PixabayComicSource extends ComicSource {
                     "popular-热门",
                     "latest-最新"
                 ],
-                notShowWhen: null,
+                notShowWhen: ["热门", "最新"],
                 showWhen: Object.keys(PixabayComicSource.category_param_dict)
             }
         ]
     }
 
-    // 搜索功能 - 在搜索关键词中添加动漫/漫画限定词
+    // 搜索功能
     search = {
         load: async (keyword, options, page) => {
             try {
@@ -218,12 +217,12 @@ class PixabayComicSource extends ComicSource {
                 let imageType = "all";
                 let ordering = "popular";
                 
-                if (options && options.length >= 1) {
-                    imageType = options[0] || "all";
+                if (options && options.length >= 1 && options[0]) {
+                    imageType = options[0];
                 }
                 
-                if (options && options.length >= 2) {
-                    ordering = options[1] || "popular";
+                if (options && options.length >= 2 && options[1]) {
+                    ordering = options[1];
                 }
                 
                 // 在用户输入的关键词中添加动漫/漫画限定词
@@ -358,7 +357,7 @@ class PixabayComicSource extends ComicSource {
                     console.error("读取收藏失败:", e);
                 }
                 
-                const pageSize = 21;
+                const pageSize = 20;
                 const start = (page - 1) * pageSize;
                 const end = start + pageSize;
                 const pageIds = favorites.slice(start, end);
@@ -366,9 +365,8 @@ class PixabayComicSource extends ComicSource {
                 const comics = [];
                 for (const id of pageIds) {
                     try {
-                        const imageId = id.split('-')[0];
                         const response = await Network.get(
-                            `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${imageId}`,
+                            `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&id=${id.split('-')[0]}`,
                             this.headers
                         );
                         
@@ -493,7 +491,6 @@ class PixabayComicSource extends ComicSource {
             }
         },
         
-        // 添加缩略图支持
         loadThumbnails: async (id, next) => {
             try {
                 // 解析图片ID
@@ -606,7 +603,18 @@ class PixabayComicSource extends ComicSource {
             '下载次数': '下载次数',
             '喜欢次数': '喜欢次数',
             '分辨率': '分辨率',
-            '类型': '类型'
+            '类型': '类型',
+            '风格': '风格',
+            '主题': '主题',
+            '动漫': '动漫',
+            '漫画': '漫画',
+            '卡通': '卡通',
+            '角色': '角色',
+            '少女': '少女',
+            '少年': '少年',
+            '机器人': '机器人',
+            '魔法': '魔法',
+            '忍者': '忍者'
         },
         'zh_TW': {
             'API 密钥': 'API 密鑰',
@@ -632,7 +640,18 @@ class PixabayComicSource extends ComicSource {
             '下载次数': '下載次數',
             '喜欢次数': '喜歡次數',
             '分辨率': '分辨率',
-            '类型': '類型'
+            '类型': '類型',
+            '风格': '風格',
+            '主题': '主題',
+            '动漫': '動漫',
+            '漫画': '漫畫',
+            '卡通': '卡通',
+            '角色': '角色',
+            '少女': '少女',
+            '少年': '少年',
+            '机器人': '機器人',
+            '魔法': '魔法',
+            '忍者': '忍者'
         },
         'en': {
             'API 密钥': 'API Key',
@@ -658,7 +677,18 @@ class PixabayComicSource extends ComicSource {
             '下载次数': 'Downloads',
             '喜欢次数': 'Likes',
             '分辨率': 'Resolution',
-            '类型': 'Type'
+            '类型': 'Type',
+            '风格': 'Style',
+            '主题': 'Theme',
+            '动漫': 'Anime',
+            '漫画': 'Manga',
+            '卡通': 'Cartoon',
+            '角色': 'Characters',
+            '少女': 'Girl',
+            '少年': 'Boy',
+            '机器人': 'Robot',
+            '魔法': 'Magic',
+            '忍者': 'Ninja'
         }
     }
 

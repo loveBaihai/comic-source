@@ -32,42 +32,42 @@ class PixabayComicSource extends ComicSource {
         }
     }
 
-    // 探索页面
+    // 探索页面 - 确保所有类别都包含动漫相关关键词
     explore = [
         {
             title: "Pixabay",
             type: "singlePageWithMultiPart",
             load: async () => {
                 try {
-                    // 创建不同分类的请求
+                    // 所有请求都添加动漫/漫画相关关键词
                     const animeRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+illustration&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga+illustration&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
                     const popularRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=illustration&image_type=all&per_page=20&page=1&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga+popular&image_type=all&per_page=20&page=1&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
-                    const natureRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=nature+landscape&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                    const characterRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+character+cartoon&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
-                    const fashionRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=fashion+model&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                    const comicRequest = Network.get(
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=comic+manga+drawing&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
                     // 并行请求数据
-                    const responses = await Promise.all([animeRequest, popularRequest, natureRequest, fashionRequest]);
+                    const responses = await Promise.all([animeRequest, popularRequest, characterRequest, comicRequest]);
                     
                     // 解析数据
                     const animeData = JSON.parse(responses[0].body);
                     const popularData = JSON.parse(responses[1].body);
-                    const natureData = JSON.parse(responses[2].body);
-                    const fashionData = JSON.parse(responses[3].body);
+                    const characterData = JSON.parse(responses[2].body);
+                    const comicData = JSON.parse(responses[3].body);
                     
                     // 检查响应状态
                     if (responses[0].status !== 200 || !animeData.hits) {
@@ -77,9 +77,9 @@ class PixabayComicSource extends ComicSource {
                     // 整合结果
                     const result = {};
                     result["动漫插画"] = animeData.hits.map(item => this._parseImage(item));
-                    result["热门插画"] = popularData.hits.map(item => this._parseImage(item));
-                    result["自然风景"] = natureData.hits.map(item => this._parseImage(item));
-                    result["时尚模特"] = fashionData.hits.map(item => this._parseImage(item));
+                    result["热门作品"] = popularData.hits.map(item => this._parseImage(item));
+                    result["动漫角色"] = characterData.hits.map(item => this._parseImage(item));
+                    result["漫画插图"] = comicData.hits.map(item => this._parseImage(item));
                     
                     return result;
                     
@@ -92,38 +92,38 @@ class PixabayComicSource extends ComicSource {
         }
     ]
 
-    // 分类设置
+    // 分类设置 - 所有分类都是动漫相关的
     static category_param_dict = {
-        "全部": "all",
-        "动漫": "anime",
-        "插画": "illustration",
-        "风景": "landscape",
-        "人物": "people",
-        "动物": "animals",
-        "建筑": "architecture",
-        "食物": "food",
-        "科技": "technology",
-        "交通": "transportation",
-        "旅行": "travel",
-        "时尚": "fashion",
-        "音乐": "music",
-        "运动": "sports",
-        "宗教": "religion",
-        "季节": "seasons"
+        "全部动漫": "anime+manga",
+        "少女动漫": "anime+girl",
+        "少年动漫": "anime+boy",
+        "机器人": "anime+robot",
+        "奇幻": "anime+fantasy",
+        "科幻": "anime+sci-fi",
+        "校园": "anime+school",
+        "魔法": "anime+magic",
+        "冒险": "anime+adventure",
+        "战斗": "anime+battle",
+        "日本动漫": "japanese+anime",
+        "赛博朋克": "cyberpunk+anime",
+        "魔女": "anime+witch",
+        "武士": "anime+samurai",
+        "忍者": "anime+ninja",
+        "怪物": "anime+monster"
     }
 
     category = {
-        title: "Pixabay",
+        title: "动漫分类",
         parts: [
             {
-                name: "Pixabay",
+                name: "风格",
                 type: "fixed",
                 categories: ["排行"],
                 categoryParams: ["popular"],
                 itemType: "category"
             },
             {
-                name: "主题",
+                name: "类型",
                 type: "fixed",
                 categories: Object.keys(PixabayComicSource.category_param_dict),
                 categoryParams: Object.values(PixabayComicSource.category_param_dict),
@@ -139,12 +139,12 @@ class PixabayComicSource extends ComicSource {
                 
                 // 分类-排行
                 if (category === "排行" || param === "popular") {
-                    category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=&image_type=all&per_page=21&page=${page}&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                    category_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga&image_type=all&per_page=21&page=${page}&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
                 } else {
                     // 分类-主题
                     if (category !== undefined && category !== null) {
                         // 若传入category，则转化为对应param
-                        param = PixabayComicSource.category_param_dict[category] || "all";
+                        param = PixabayComicSource.category_param_dict[category] || "anime+manga";
                     }
                     
                     options = options.map(e => e.replace("*", "-"));
@@ -210,7 +210,7 @@ class PixabayComicSource extends ComicSource {
         ]
     }
 
-    // 搜索功能
+    // 搜索功能 - 在搜索关键词中添加动漫/漫画限定词
     search = {
         load: async (keyword, options, page) => {
             try {
@@ -226,7 +226,10 @@ class PixabayComicSource extends ComicSource {
                     ordering = options[1] || "popular";
                 }
                 
-                const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${encodeURIComponent(keyword)}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
+                // 在用户输入的关键词中添加动漫/漫画限定词
+                const searchKeyword = `${encodeURIComponent(keyword)}+anime+manga`;
+                
+                const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${searchKeyword}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
                 
                 const res = await Network.get(search_url, this.headers);
                 
@@ -528,7 +531,7 @@ class PixabayComicSource extends ComicSource {
             if (namespace === "标签") {
                 return {
                     action: 'search',
-                    keyword: tag,
+                    keyword: tag, // 搜索方法会自动添加动漫/漫画关键词
                     param: null,
                 }
             }
@@ -591,9 +594,9 @@ class PixabayComicSource extends ComicSource {
             '插画': '插画',
             '矢量图': '矢量图',
             '动漫插画': '动漫插画',
-            '热门插画': '热门插画',
-            '自然风景': '自然风景',
-            '时尚模特': '时尚模特',
+            '热门作品': '热门作品',
+            '动漫角色': '动漫角色',
+            '漫画插图': '漫画插图',
             '查看大图': '查看大图',
             '未命名': '未命名',
             '收藏夹': '收藏夹',
@@ -617,9 +620,9 @@ class PixabayComicSource extends ComicSource {
             '插画': '插畫',
             '矢量图': '矢量圖',
             '动漫插画': '動漫插畫',
-            '热门插画': '熱門插畫',
-            '自然风景': '自然風景',
-            '时尚模特': '時尚模特',
+            '热门作品': '熱門作品',
+            '动漫角色': '動漫角色',
+            '漫画插图': '漫畫插圖',
             '查看大图': '查看大圖',
             '未命名': '未命名',
             '收藏夹': '收藏夾',
@@ -643,9 +646,9 @@ class PixabayComicSource extends ComicSource {
             '插画': 'Illustration',
             '矢量图': 'Vector',
             '动漫插画': 'Anime Illustrations',
-            '热门插画': 'Popular Illustrations',
-            '自然风景': 'Nature & Landscape',
-            '时尚模特': 'Fashion Models',
+            '热门作品': 'Popular Works',
+            '动漫角色': 'Anime Characters',
+            '漫画插图': 'Comic Illustrations',
             '查看大图': 'View Full Image',
             '未命名': 'Untitled',
             '收藏夹': 'Favorites',

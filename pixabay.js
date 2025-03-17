@@ -209,7 +209,7 @@ class PixabayComicSource extends ComicSource {
         ]
     }
     
-    // 搜索功能
+   // 搜索功能 - 修复 URL 编码问题
 search = {
     load: async (keyword, options, page) => {
         try {
@@ -225,27 +225,31 @@ search = {
                 ordering = options[1];
             }
             
-            // 正确处理搜索关键词
+            // 处理搜索关键词
             let searchKeyword = keyword || "";
             
-            // 特殊处理用户搜索
+            // 确保在编码前添加动漫相关关键词
             if (searchKeyword.startsWith("user:")) {
                 // 用户搜索保持原样，但仍添加动漫限定
                 const username = searchKeyword.substring(5).trim();
-                searchKeyword = `user:${username} (anime OR manga OR cartoon)`;
+                searchKeyword = `user:${username} anime manga cartoon`;
             } else if (searchKeyword.length > 0) {
-                // 普通搜索词，以更智能的方式组合
-                searchKeyword = `${searchKeyword} (anime OR manga OR cartoon)`;
+                // 普通搜索词
+                searchKeyword = `${searchKeyword} anime manga cartoon`;
             } else {
                 // 空搜索，只使用动漫关键词
                 searchKeyword = "anime manga cartoon";
             }
             
-            // 编码整个搜索关键词
+            // 确保正确编码 URL - 这是关键修复
             const encodedKeyword = encodeURIComponent(searchKeyword);
             
+            // 构建完整的搜索 URL
             const search_url = `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=${encodedKeyword}&image_type=${imageType}&per_page=21&page=${page}&order=${ordering}&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`;
             
+            console.log("搜索 URL:", decodeURIComponent(search_url)); // 调试用，解码显示
+            
+            // 使用编码后的 URL 发送请求
             const res = await Network.get(search_url, this.headers);
             
             if (res.status !== 200) {

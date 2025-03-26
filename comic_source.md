@@ -2,18 +2,12 @@
 
 ## Introduction
 
-Venera is a comic reader that can read comics from various sources. 
-
-All comic sources are written in javascript. 
-Venera uses [flutter_qjs](https://github.com/wgh136/flutter_qjs) as js engine which is forked from [ekibun](https://github.com/ekibun/flutter_qjs).
-
-This document will describe how to write a comic source for Venera.
+This document will describe how to write a comic source for Mangaa.
 
 ## Preparation
 
-- Install Venera. Using flutter to run the project is recommended since it's easier to debug.
+- Install Mangaa. Using flutter to run the project is recommended since it's easier to debug.
 - An editor that supports javascript.
-- Download template and venera javascript api from [here](https://github.com/venera-app/venera-configs).
 
 ## Start Writing
 

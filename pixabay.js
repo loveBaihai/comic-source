@@ -39,22 +39,22 @@ class PixabayComicSource extends ComicSource {
                 try {
                     // 创建不同分类的请求，都添加动漫/漫画关键词
                     const animeRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga+illustration&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
                     const popularRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+manga+popular&image_type=all&per_page=20&page=1&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+popular&image_type=all&per_page=20&page=1&order=popular&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
                     const characterRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+character+cartoon&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=anime+character&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
                     const comicRequest = Network.get(
-                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=comic+manga+drawing&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
+                        `${PixabayComicSource.apiUrl}/?key=${this.apiKey}&q=comic+drawing&image_type=all&per_page=20&page=1&safesearch=${this.loadSetting('safesearch') ? 'true' : 'false'}`,
                         this.headers
                     );
                     
